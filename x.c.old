@@ -848,9 +848,9 @@ xloadcols(void)
 	for (i = 0; i < dc.collen; i++)
 		if (!xloadcolor(i, NULL, &dc.col[i])) {
 			if (colorname[i])
-				die("Could not allocate color '%s'\n", colorname[i]);
+				die("could not allocate color '%s'\n", colorname[i]);
 			else
-				die("Could not allocate color %d\n", i);
+				die("could not allocate color %d\n", i);
 		}
 	loaded = 1;
 }
@@ -2175,7 +2175,7 @@ resource_load(XrmDatabase db, char *name, enum resource_type rtype, void *dst)
 	snprintf(fullname, sizeof(fullname), "%s.%s",
 			opt_name ? opt_name : "st", name);
 	snprintf(fullclass, sizeof(fullclass), "%s.%s",
-			opt_class ? opt_class : termname, name);
+			opt_class ? opt_class : "St", name);
 	fullname[sizeof(fullname) - 1] = fullclass[sizeof(fullclass) - 1] = '\0';
 
 	XrmGetResource(db, fullname, fullclass, &type, &ret);
@@ -2214,34 +2214,16 @@ config_init(void)
 }
 
 void
-reload(int sig)
-{
-	config_init();
-
-	/* colors, fonts */
-	xloadcols();
-	xunloadfonts();
-	xloadfonts(font, 0);
-
-	/* pretend the window just got resized */
-	cresize(win.w, win.h);
-	ttyresize(win.tw, win.th);
-
-	redraw();
-
-	/* triggers re-render if we're visible. */
-	ttywrite("\033[O", 3, 0);
-
-	signal(SIGUSR1, reload);
-}
-
-void
 usage(void)
 {
-	die("usage: %s [-aiv] [-c class] [-f font] [-g geometry] [-n name] [-o file]\n"
-	    "          [-T title] [-t title] [-w windowid] [[-e] command [args ...]]\n"
-	    "       %s [-aiv] [-c class] [-f font] [-g geometry] [-n name] [-o file]\n"
-	    "          [-T title] [-t title] [-w windowid] -l line [stty_args ...]\n", argv0, argv0);
+	die("usage: %s [-aiv] [-c class] [-f font] [-g geometry]"
+	    " [-n name] [-o file]\n"
+	    "          [-T title] [-t title] [-w windowid]"
+	    " [[-e] command [args ...]]\n"
+	    "       %s [-aiv] [-c class] [-f font] [-g geometry]"
+	    " [-n name] [-o file]\n"
+	    "          [-T title] [-t title] [-w windowid] -l line"
+	    " [stty_args ...]\n", argv0, argv0);
 }
 
 int
@@ -2312,7 +2294,6 @@ run:
 	config_init();
 	cols = MAX(cols, 1);
 	rows = MAX(rows, 1);
-	signal(SIGUSR1, reload);
 	tnew(cols, rows);
 	xinit(cols, rows);
 	xsetenv();
