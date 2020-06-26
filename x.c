@@ -49,18 +49,39 @@ typedef struct {
 	signed char appcursor; /* application cursor */
 } Key;
 
-/* Xresources preferences */
-enum resource_type {
-	STRING = 0,
-	INTEGER = 1,
-	FLOAT = 2
-};
+//// Xresources preferences
+//enum resource_type {
+//	STRING = 0,
+//	INTEGER = 1,
+//	FLOAT = 2
+//};
+//
+//typedef struct {
+//	char *name;
+//	enum resource_type type;
+//	void *dst;
+//} ResourcePref;
 
-typedef struct {
-	char *name;
-	enum resource_type type;
-	void *dst;
-} ResourcePref;
+#define XRESOURCE_LOAD_META(NAME)                                  \
+	if(!XrmGetResource(xrdb, "st." NAME, "st." NAME, &type, &ret)) \
+		XrmGetResource(xrdb, "*." NAME, "*." NAME, &type, &ret);   \
+	if (ret.addr != NULL && !strncmp("String", type, 64))
+
+#define XRESOURCE_LOAD_STRING(NAME, DST) \
+	XRESOURCE_LOAD_META(NAME)            \
+		DST = ret.addr;
+
+#define XRESOURCE_LOAD_CHAR(NAME, DST) \
+	XRESOURCE_LOAD_META(NAME)            \
+		DST = ret.addr[0];
+
+#define XRESOURCE_LOAD_INTEGER(NAME, DST)  \
+	XRESOURCE_LOAD_META(NAME)              \
+		DST = strtoul(ret.addr, NULL, 10);
+
+#define XRESOURCE_LOAD_FLOAT(NAME, DST) \
+	XRESOURCE_LOAD_META(NAME)           \
+		DST = strtof(ret.addr, NULL);
 
 /* X modifiers */
 #define XK_ANY_MOD    UINT_MAX
@@ -1261,8 +1282,8 @@ xinit(int cols, int rows)
 	pid_t thispid = getpid();
 	XColor xmousefg, xmousebg;
 
-//	if (!(xw.dpy = XOpenDisplay(NULL)))
-//		die("can't open display\n");
+	if (!(xw.dpy = XOpenDisplay(NULL)))
+		die("can't open display\n");
 	xw.scr = XDefaultScreen(xw.dpy);
 	xw.vis = XDefaultVisual(xw.dpy, xw.scr);
 
@@ -2160,64 +2181,96 @@ run(void)
 	}
 }
 
-int
-resource_load(XrmDatabase db, char *name, enum resource_type rtype, void *dst)
-{
-	char **sdst = dst;
-	int *idst = dst;
-	float *fdst = dst;
-
-	char fullname[256];
-	char fullclass[256];
-	char *type;
-	XrmValue ret;
-
-	snprintf(fullname, sizeof(fullname), "%s.%s",
-			opt_name ? opt_name : "st", name);
-	snprintf(fullclass, sizeof(fullclass), "%s.%s",
-			opt_class ? opt_class : termname, name);
-	fullname[sizeof(fullname) - 1] = fullclass[sizeof(fullclass) - 1] = '\0';
-
-	XrmGetResource(db, fullname, fullclass, &type, &ret);
-	if (ret.addr == NULL || strncmp("String", type, 64))
-		return 1;
-
-	switch (rtype) {
-	case STRING:
-		*sdst = ret.addr;
-		break;
-	case INTEGER:
-		*idst = strtoul(ret.addr, NULL, 10);
-		break;
-	case FLOAT:
-		*fdst = strtof(ret.addr, NULL);
-		break;
-	}
-	return 0;
-}
-
 void
-config_init(void)
+xrdb_load(void)
 {
-	char *resm;
-	XrmDatabase db;
-	ResourcePref *p;
+	/* XXX */
+	char *xrm;
+	char *type;
+	XrmDatabase xrdb;
+	XrmValue ret;
+	Display *dpy;
+
+	if(!(dpy = XOpenDisplay(NULL)))
+		die("Can't open display\n");
 
 	XrmInitialize();
-	resm = XResourceManagerString(xw.dpy);
-	if (!resm)
-		return;
+	xrm = XResourceManagerString(dpy);
 
-	db = XrmGetStringDatabase(resm);
-	for (p = resources; p < resources + LEN(resources); p++)
-		resource_load(db, p->name, p->type, p->dst);
+	if (xrm != NULL) {
+		xrdb = XrmGetStringDatabase(xrm);
+
+		/* handling colors here without macros to do via loop. */
+		int i = 0;
+		char loadValue[12] = "";
+		for (i = 0; i < 256; i++)
+		{
+			sprintf(loadValue, "%s%d", "st.color", i);
+
+			if(!XrmGetResource(xrdb, loadValue, loadValue, &type, &ret))
+			{
+				sprintf(loadValue, "%s%d", "*.color", i);
+				if (!XrmGetResource(xrdb, loadValue, loadValue, &type, &ret))
+					/* reset if not found (unless in range for defaults). */
+					if (i > 15)
+						colorname[i] = NULL;
+			}
+
+			if (ret.addr != NULL && !strncmp("String", type, 64))
+				colorname[i] = ret.addr;
+		}
+
+		XRESOURCE_LOAD_STRING("foreground", colorname[256]);
+		XRESOURCE_LOAD_STRING("background", colorname[257]);
+		XRESOURCE_LOAD_STRING("cursorfg", colorname[258])
+		else {
+		  // this looks confusing because we are chaining off of the if
+		  // in the macro. probably we should be wrapping everything blocks
+		  // so this isn't possible...
+		  defaultcs = defaultfg;
+		}
+		XRESOURCE_LOAD_STRING("reverse-cursor", colorname[259])
+		else {
+		  // see above.
+		  defaultrcs = defaultbg;
+		}
+		XRESOURCE_LOAD_STRING("font", font);
+		XRESOURCE_LOAD_STRING("termname", termname);
+		XRESOURCE_LOAD_STRING("shell", shell);
+
+//		XRESOURCE_LOAD_INTEGER("xfps", xfps);
+//		XRESOURCE_LOAD_INTEGER("actionfps", actionfps);
+		XRESOURCE_LOAD_INTEGER("blinktimeout", blinktimeout);
+		XRESOURCE_LOAD_INTEGER("bellvolume", bellvolume);
+//		XRESOURCE_LOAD_INTEGER("bold_font", bold_font);
+		XRESOURCE_LOAD_INTEGER("borderpx", borderpx);
+//		XRESOURCE_LOAD_INTEGER("cursorshape", xw.cursor);
+//		cursorblinkstate = 1; // in case if cursor shape was changed from a blinking one to a non-blinking
+//		XRESOURCE_LOAD_INTEGER("cursorthickness", cursorthickness);
+//		XRESOURCE_LOAD_INTEGER("cursorblinkstyle", cursorblinkstyle);
+//		XRESOURCE_LOAD_INTEGER("cursorblinkontype", cursorblinkontype);
+
+//		XRESOURCE_LOAD_INTEGER("mouseScrollLines", mousescrolllines);
+
+		XRESOURCE_LOAD_FLOAT("cwscale", cwscale);
+		XRESOURCE_LOAD_FLOAT("chscale", chscale);
+
+//		XRESOURCE_LOAD_CHAR("prompt_char", prompt_char);
+
+//		if (!xrdb_overrides_alpha) {
+//			XRESOURCE_LOAD_INTEGER("opacity", alpha);
+//		}
+
+//		XRESOURCE_LOAD_STRING("imstyle", imstyle);
+//		imstyle = strtolower(imstyle);
+	}
+	XFlush(dpy);
 }
 
 void
 reload(int sig)
 {
-	config_init();
-
+	xrdb_load();
 	/* colors, fonts */
 	xloadcols();
 	xunloadfonts();
@@ -2309,7 +2362,8 @@ run:
 	if(!(xw.dpy = XOpenDisplay(NULL)))
 		die("Can't open display\n");
 
-	config_init();
+//	config_init();
+	xrdb_load();
 	cols = MAX(cols, 1);
 	rows = MAX(rows, 1);
 	signal(SIGUSR1, reload);
