@@ -135,17 +135,11 @@ unsigned int defaultbg = 0;
 static unsigned int defaultcs = 256;
 static unsigned int defaultrcs = 257;
 
-// https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h4-Functions-using-CSI-_-ordered-by-the-final-character-lparen-s-rparen:CSI-Ps-SP-q.1D81
 // Default style of cursor
-//   0: Blinking block
-//   1: Blinking block (default)
-//   2: Steady block ("█")
-//   3: Blinking underline
-//   4: Steady underline ("_")
-//   5: Blinking bar
-//   6: Steady bar ("|")
-//   7: Blinking st cursor
-//   8: Steady st cursor
+// ("█") 0,1: Blinking block     2: Steady block
+// ("_")   3: Blinking underline 4: Steady underline
+// ("|")   5: Blinking bar       6: Steady bar
+//         7: Blinking st cursor 8: Steady st cursor
 static unsigned int cursorstyle = 1;
 static Rune stcursor = 0x2603; // snowman (U+2603)
 
@@ -175,14 +169,14 @@ static char *openurlcmd[] = { "/bin/sh", "-c",
 // Internal mouse shortcuts.
 // Beware that overloading Button1 will disable the selection.
 static MouseShortcut mshortcuts[] = {
-	// mask                 button   function        argument       release
-	{ XK_NO_MOD,           Button4, kscrollup,      {.i = 1},      0, /* !alt */ -1 },
-	{ XK_NO_MOD,           Button5, kscrolldown,    {.i = 1},      0, /* !alt */ -1 },
-	{ XK_ANY_MOD,           Button2, selpaste,       {.i = 0},      1 },
-	{ ShiftMask,            Button4, ttysend,        {.s = "\033[5;2~"} },
-	{ XK_ANY_MOD,           Button4, ttysend,        {.s = "\031"} },
-	{ ShiftMask,            Button5, ttysend,        {.s = "\033[6;2~"} },
-	{ XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"} },
+	// mask        button   function      argument       release
+	{ XK_NO_MOD,   Button4, kscrollup,    {.i = 1},      0, /* !alt */ -1 },
+	{ XK_NO_MOD,   Button5, kscrolldown,  {.i = 1},      0, /* !alt */ -1 },
+	{ XK_ANY_MOD,  Button2, selpaste,     {.i = 0},      1 },
+	{ ShiftMask,   Button4, ttysend,      {.s = "\033[5;2~"} },
+	{ XK_ANY_MOD,  Button4, ttysend,      {.s = "\031"} },
+	{ ShiftMask,   Button5, ttysend,      {.s = "\033[6;2~"} },
+	{ XK_ANY_MOD,  Button5, ttysend,      {.s = "\005"} },
 };
 
 // Internal keyboard shortcuts.
@@ -351,7 +345,7 @@ static Key key[] = {
 	{ XK_Delete,        XK_ANY_MOD,     "\033[P",       -1,    0},
 	//{ XK_Delete,        XK_ANY_MOD,     "\033[3~",      +1,    0},
 	//{ XK_BackSpace,     XK_NO_MOD,      "\177",          0,    0},
-	{ XK_Delete,        XK_ANY_MOD,     "\177",         +1,    0},
+	{ XK_Delete,        XK_NO_MOD,     "\177",         +1,    0},
 	{ XK_BackSpace,     Mod1Mask,       "\033\177",      0,    0},
 	{ XK_Home,          ShiftMask,      "\033[2J",       0,   -1},
 	{ XK_Home,          ShiftMask,      "\033[1;2H",     0,   +1},
